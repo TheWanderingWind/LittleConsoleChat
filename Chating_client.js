@@ -2,7 +2,9 @@ const net = require("net")
 const readline = require("readline")
 
 
-function createConnect(data = {
+let connected_socket;
+
+function makeConnect(data = {
   port: 8080,
   host: "127.0.0.1"
 }) {
@@ -27,3 +29,20 @@ function createConnect(data = {
 
   return client
 }
+
+function send(message) {
+  if (connected_socket) {
+    connected_socket.write(message);
+  } else {
+    console.log("Не підключений до сервера");
+  }
+}
+
+connected_socket = makeConnect();
+send("Тестове повідомлення");
+send("Друге тестове повідомлення");
+
+setTimeout(() => {
+  connected_socket.end()
+  console.log("З'єднання закрито автоматично")
+}, 3000)
