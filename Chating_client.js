@@ -2,7 +2,7 @@ const net = require("net")
 const readline = require("readline");
 const { clearTimeout } = require("timers");
 
-let connect_data = {
+let connectData = {
   port: 8080,
   host: "127.0.0.1",
   timeout: 300000 // 5 min
@@ -17,7 +17,7 @@ function makeConnect({port = 8080, host = "127.0.0.1", timeout = 30000} = {}) {
   return new Promise((resolve, reject) => {
     // connections create
     const client = net.createConnection( {port, host}, () => {
-      insertLineAbove(`Успішне підключення до ${host}`, connected_rl);
+      insertLineAbove(`Успішне підключення до ${host}`, connectedRL);
     });
 
     // timeout setup
@@ -25,23 +25,23 @@ function makeConnect({port = 8080, host = "127.0.0.1", timeout = 30000} = {}) {
     function closeConnect() {
       client.end();
       insertLineAbove("З'єднання закрито через неактивність тої сторони");
-      startRegularConsole();
+      startRegularRL();
     }
-    let timeout_obj = setTimeout(closeConnect, timeout);
+    let timeoutObj = setTimeout(closeConnect, timeout);
 
     // connections event bind
     // on get data
     client.on("data", (data) => {
-      insertLineAbove(host + " >> " + data.toString(), connected_rl);
+      insertLineAbove(host + " >> " + data.toString(), connectedRL);
 
       // reset timeout timer
-      clearTimeout(timeout_obj);
-      timeout_obj = setTimeout(closeConnect, timeout);
+      clearTimeout(timeoutObj);
+      timeoutObj = setTimeout(closeConnect, timeout);
     });
 
     // on close connection
     client.on("close", () => {
-      clearTimeout(timeout_obj);
+      clearTimeout(timeoutObj);
     });
 
     // on error
@@ -49,6 +49,7 @@ function makeConnect({port = 8080, host = "127.0.0.1", timeout = 30000} = {}) {
       reject(err);
     });
 
+    // on connect
     client.on("connect", () => {
       resolve(client);
     });
@@ -58,8 +59,8 @@ function makeConnect({port = 8080, host = "127.0.0.1", timeout = 30000} = {}) {
       if (!client.destroyed) {
         client.write(message);
         // reset timeout timer
-        clearTimeout(timeout_obj);
-        timeout_obj = setTimeout(closeConnect, timeout);
+        clearTimeout(timeoutObj);
+        timeoutObj = setTimeout(closeConnect, timeout);
       } else {
         console.log("Нема підключення, щоб відправити повідомлення");
       }
@@ -104,20 +105,20 @@ function parceIPv6andPort(input) {
 }
 
 /** Readline snterface when not connected */
-let regular_rl = readline.createInterface(process.stdin, process.stdout);
-regular_rl.setPrompt(">> ");
+let regularRL = readline.createInterface(process.stdin, process.stdout);
+regularRL.setPrompt(">> ");
 
 /** Readline snterface when connected */
-let connected_rl;
+let connectedRL;
 
 /** A buffer for storing input */
 let currentInput = '';
 
 /** TCP socket */
-let connected_socket;
+let activeSocket;
 
 // storing to buffer input
-regular_rl.input.on('data', (char) => {
+regularRL.input.on('data', (char) => {
   if (char == String.fromCharCode(13)) {
     // Enter key pressed, reset current input
     currentInput = '';
@@ -128,9 +129,9 @@ regular_rl.input.on('data', (char) => {
 
 /**
  * Insert string before input line in console
- * @param {*} text string for output
+ * @param {string} text string for output
  */
-function insertLineAbove(text, rl = regular_rl) {
+function insertLineAbove(text, rl = null) {
   // Clear current input line
   readline.clearLine(process.stdout, 0);
   readline.cursorTo(process.stdout, 0);
@@ -145,97 +146,97 @@ function insertLineAbove(text, rl = regular_rl) {
 /**
  * Cycling regular readline interface
  */
-function ask() {
-  regular_rl.question(regular_rl.getPrompt(), (answer) => {
+function regularRLprocc() {
+  regularRL.question(regularRL.getPrompt(), (answer) => {
     let words = answer.split(" ").filter(element => element !== "");
 
     // connect to server
     if (words[0] == "connect") {
       // when 'connect' without ip and port
       if (words.length == 1) {
-        startConnectedConsole();
+        startConnectedRL();
       // when 'connect' whith one argument
       } else if (words.length == 2) {
         // it's IPv6
         if (isValidIPv6(words[1])) {
-          connect_data.host = '['+words[1]+']';
-          startConnectedConsole();
+          connectData.host = '['+words[1]+']';
+          startConnectedRL();
         // it's IPv4
         } else if (isValidIPv4(words[1])) {
-          connect_data.host = words[1];
-          startConnectedConsole();
+          connectData.host = words[1];
+          startConnectedRL();
         // it's IPv6+Port
       } else if (parceIPv6andPort(words[1])) {
           let temp = parceIPv6andPort(words[1]);
-          connect_data.host = '['+temp[1]+']';
-          connect_data.port = temp[2];
-          startConnectedConsole();
+          connectData.host = '['+temp[1]+']';
+          connectData.port = temp[2];
+          startConnectedRL();
         // it's IPv4+Port
         } else if (parceIPv4andPort(words[1])) {
           let temp = parceIPv4andPort(words[1]);
-          connect_data.host = temp[0];
-          connect_data.port = temp[1];
-          startConnectedConsole();
+          connectData.host = temp[0];
+          connectData.port = temp[1];
+          startConnectedRL();
         // it's Port
         } else if (isValidPort(words[1])) {
-          connect_data.port = words[1];
-          startConnectedConsole();
+          connectData.port = words[1];
+          startConnectedRL();
         } else {
           console.log(`Не коректний формат вводу: ${words[1]}`)
-          ask();
+          regularRLprocc();
         }
       // when 'connect' whith two argument
       } else if (words.length == 3) {
         if (isValidIPv4(words[1]) || isValidIPv6(words[1]) && isValidPort(words[2])) {
-          if (isValidIPv4(words[1])) connect_data.host = words[1];
-          else connect_data.host = '['+words[1]+']';
-          connect_data.port = words[2];
-          startConnectedConsole();
+          if (isValidIPv4(words[1])) connectData.host = words[1];
+          else connectData.host = '['+words[1]+']';
+          connectData.port = words[2];
+          startConnectedRL();
         } else {
           console.log("Не коректний формат вводу");
-          ask();
+          regularRLprocc();
         }
       // when 'connect' whith two and more argument
       } else {
         console.log("Забагато аргументів");
-        ask();
+        regularRLprocc();
       }
     // exit 
     } else if (answer == "exit") {
-      regular_rl.close();
+      regularRL.close();
     // new port
     } else if (words[0] == "port") {
       if (isValidPort(words[1])) {
-        connect_data.port = words[1];
-        console.log(`Новий порт тепер ${connect_data.port}`);
+        connectData.port = words[1];
+        console.log(`Новий порт тепер ${connectData.port}`);
       // Uncorrect port
       } else {
         console.log(`'${words[1]}' не валідний порт`);
       }
-      ask();
+      regularRLprocc();
     // new IP
     } else if (words[0] == "ip") {
       // IPv4
       if (isValidIPv4(words[1])) {
-        connect_data.host = words[1];
-        console.log(`Новий IP тепер ${connect_data.host}`);
+        connectData.host = words[1];
+        console.log(`Новий IP тепер ${connectData.host}`);
       // IPv6
       } else if (isValidIPv6(words[1])) {
-        connect_data.host = '['+words[1]+']';
-        console.log(`Новий IP тепер ${connect_data.host}`);
+        connectData.host = '['+words[1]+']';
+        console.log(`Новий IP тепер ${connectData.host}`);
       // Uncorrect IP
       } else {
         console.log(`'${words[1]}' не валідний IP`);
       }
-      ask();
+      regularRLprocc();
     // help
     } else if (answer == "help") {
       console.log("Довідник ще не готовий")
-      ask();
+      regularRLprocc();
     // Uncorrect command
     } else {
       console.log("Невідома команда '"+answer+"'");
-      ask();
+      regularRLprocc();
     }
   })
 }
@@ -244,15 +245,15 @@ function ask() {
 /**
  * Cycling readline interface when connected
  */
-function sending() {
-  connected_rl.question(connected_rl.getPrompt(), (answer) => {
+function connectedRLprocc() {
+  connectedRL.question(connectedRL.getPrompt(), (answer) => {
     // disconnect
     if (answer == "%exit" || answer == "%disconnect") {
-      startRegularConsole();
+      startRegularRL();
     // send message
     } else {
-      connected_socket.send(answer);
-      sending();
+      activeSocket.send(answer);
+      connectedRLprocc();
     }
   });
 }
@@ -261,38 +262,38 @@ function sending() {
 /**
  * Starting regular console 
  */
-function startRegularConsole() {
-  connected_socket.end()
-  connected_rl.close();
-  regular_rl = readline.createInterface(process.stdin, process.stdout);
-  regular_rl.setPrompt(">> ")
+function startRegularRL() {
+  activeSocket.end()
+  connectedRL.close();
+  regularRL = readline.createInterface(process.stdin, process.stdout);
+  regularRL.setPrompt(">> ")
   console.log("Введіть help для отримання довідки");
-  ask();
+  regularRLprocc();
 }
 
 
 /**
  * Starting connected console 
  */
-function startConnectedConsole() {
-  console.log(`Спроба під'єднатись до ${connect_data.host}:${connect_data.port}...`)
-  makeConnect(connect_data)
+function startConnectedRL() {
+  console.log(`Спроба під'єднатись до ${connectData.host}:${connectData.port}...`)
+  makeConnect(connectData)
     .then((socket) => {
-      connected_socket = socket;
-      regular_rl.close();
-      connected_rl = readline.createInterface(process.stdin, process.stdout);
-      connected_rl.setPrompt(`${connect_data.host} << `);
+      activeSocket = socket;
+      regularRL.close();
+      connectedRL = readline.createInterface(process.stdin, process.stdout);
+      connectedRL.setPrompt(`${connectData.host} << `);
       console.log("Введіть %exit щоб закрити з'єднання");
-      sending();
+      connectedRLprocc();
     })
     .catch((err) => {
       console.log("Помилка з'єднання");
       console.log(err);
-      ask();
+      regularRLprocc();
     });
 }
 
 
 // start program
 console.log("Введіть help для отримання довідки");
-ask();
+regularRLprocc();
