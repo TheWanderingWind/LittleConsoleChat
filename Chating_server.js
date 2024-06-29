@@ -16,9 +16,6 @@ let remoteData = {
   remotePort: null
 }
 
-/** If lisening server any port? (not using yet) */
-let serverLisening = false;
-
 /**
  * Create server
  * @param {object} param0 
@@ -39,7 +36,8 @@ function createServer({port = hostData.port, host = hostData.host, timeout = hos
     // on close connection
     socket.on("close", () => {
       clearTimeout(timeoutObj);
-      console.log("closed");
+      insertLineAbove("З'єднання було розірвано");
+      server.close();
       startRegularRL();
     });
 
@@ -84,14 +82,22 @@ function createServer({port = hostData.port, host = hostData.host, timeout = hos
   return server
 }
 
-/** Function that start lisening server. Can be canceled by user */
+/** Function that start lisening server. */
 function startListen(server) {
   server.listen(hostData.port, hostData.host, () => {
-    console.log(`До вас можна під'єднатися за ${hostData.host}:${hostData.port}`);
-    regularRL.question("Натисність Enter для скасування очікування приєднання", () => {
-      server.close();
-      startRegularRL();
-    });
+    waitOrDenyListen();
+  });
+}
+
+/**
+ * Shoud using when server open and wait to connect client
+ * Can close server without client connect by user.
+ */
+function waitOrDenyListen() {
+  console.log(`До вас можна під'єднатися за ${hostData.host}:${hostData.port}`);
+  regularRL.question("Натисність Enter для скасування очікування приєднання", () => {
+    activeServer.close();
+    regularRLprocc();
   });
 }
 
@@ -180,8 +186,7 @@ function hostedRLProcc() {
   hostedRL.question(hostedRL.getPrompt(), (answer) => {
     // disconnect
     if (answer == "%exit" || answer == "%disconnect") {
-      activeServer.close();
-      //startRegularRL();
+      activeSocket.end();
     // send message
     } else {
       activeSocket.send(answer);
@@ -228,14 +233,6 @@ function startHostedRL(socket) {
 function startHosting() {
   activeServer = createServer();
   startListen(activeServer);
-}
-
-/**
- * Connection was close and ask, if it shoud continue hosting
- * Not ready for use
- */
-function closeHosting() {
-  activeSocket.pause();
 }
 
 
